@@ -5,6 +5,15 @@ The native [`html/template` engine](https://golang.org/pkg/html/template/) can h
 
 This package is for people who want to stick to closely to vanilla Go when building/using HTML templates.
 
+## Inheritance
+
+You can't specify a template parent from the child. Instead, you have to load templates backwards by loading the child, then having the parent template.Execute() to render the child correctly inside it.
+
+    t, _ := template.ParseFiles("base.tmpl", "about.tmpl")
+    t.Execute(w, nil)
+
+- https://blog.questionable.services/article/approximating-html-template-inheritance/
+- https://www.kylehq.com/2017/05/golang-templates---what-i-missed/ ([gist](https://gitlab.com/snippets/1662623))
 
 ## Template Functions
 

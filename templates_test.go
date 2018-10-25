@@ -2,6 +2,7 @@ package got
 
 import (
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -81,6 +82,99 @@ func TestTemplatesOld(t *testing.T) {
 }
 */
 
+func TestChild(t *testing.T) {
+	var templates = template.New("home.html")
+
+	var err error
+
+	_, err = templates.ParseGlob("samples/child/*.html")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(templates.DefinedTemplates())
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	router := http.NewServeMux()
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		err := templates.Execute(w, nil)
+		if err != nil {
+			log.Println(err)
+			fmt.Fprint(w, err)
+		}
+	})
+	router.ServeHTTP(rr, req)
+
+	got := rr.Body.String()
+	want := "Hi"
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Error(rr.Body.String())
+	}
+
+	if got != want {
+		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+	}
+
+}
+
+func DontTestNative(t *testing.T) {
+	var templates = template.New("content")
+
+	var err error
+
+	_, err = templates.ParseGlob("samples/native/layouts/*.html")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = templates.ParseGlob("samples/native/includes/*.html")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = templates.ParseGlob("samples/native/pages/*.html")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(templates.DefinedTemplates())
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	router := http.NewServeMux()
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		err := templates.Execute(w, nil)
+		if err != nil {
+			log.Println(err)
+			fmt.Fprint(w, err)
+		}
+	})
+	router.ServeHTTP(rr, req)
+
+	got := rr.Body.String()
+	want := "Hi"
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Error(rr.Body.String())
+	}
+
+	if got != want {
+		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+	}
+
+}
+
+/*
 func TestTemplates(t *testing.T) {
 	// Here we create a temporary directory and populate it with our sample
 	// template definition files; usually the template files would already
@@ -133,3 +227,4 @@ func TestTemplates(t *testing.T) {
 	}
 
 }
+*/

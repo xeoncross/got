@@ -50,25 +50,27 @@ func FindTemplates(path string, extension string) (paths []string, err error) {
 
 // ParseFile with custom name instead of using .ParseFiles()
 func ParseFile(t *template.Template, path string) (err error) {
-	basename := filepath.Base(path)
-	basename = strings.TrimSuffix(basename, filepath.Ext(basename))
+	// basename := filepath.Base(path)
+	// basename = strings.TrimSuffix(basename, filepath.Ext(basename))
 
-	fmt.Println(path, basename)
+	// fmt.Println(path, basename)
 
 	var b []byte
 	b, err = ioutil.ReadFile(path)
 	if err != nil {
 		return
 	}
-	tmpl := t.New(basename)
-	_, err = tmpl.Parse(string(b))
+	// tmpl := t.New(basename)
+	// _, err = tmpl.Parse(string(b))
+
+	_, err = t.Parse(string(b))
 
 	if err != nil {
 		return
 	}
 
-	fmt.Println(tmpl.DefinedTemplates())
-	t = tmpl
+	// fmt.Println(path, t.DefinedTemplates())
+	// t = tmpl
 	return
 }
 
@@ -78,13 +80,17 @@ func AddTemplates(Templates *template.Template, path string, extension string) (
 		if err == nil {
 			if strings.Contains(path, extension) {
 
+				fmt.Printf("\tAdding: %s\n", filepath.Base(path))
 				// var Templates *template.Template
 
 				// Templates named "filename.html"
-				// _, err = Templates.ParseFiles(path)
+				_, err = Templates.ParseFiles(path)
 
-				err = ParseFile(Templates, path)
+				// err = ParseFile(Templates, path)
 
+				if err != nil {
+					return err
+				}
 				// Templates = tmpl
 
 			}
@@ -122,7 +128,7 @@ func New(extension string) *Templates {
 }
 
 // Load templates segregated by template name
-// First item is the pages, the next and following are the layouts/includes:
+// First item is the child pages, the next and following are the layouts/includes:
 // Load("pages/", "layouts/", "partials/")
 func (t *Templates) Load(paths ...string) (err error) {
 
@@ -139,14 +145,14 @@ func (t *Templates) Load(paths ...string) (err error) {
 		basename := filepath.Base(pagePath)
 		basename = strings.TrimSuffix(basename, filepath.Ext(basename))
 
-		// fmt.Println(pagePath, basename)
+		fmt.Println(pagePath, basename)
 
 		// Load this template
-		tmp := template.New(basename).Funcs(t.Functions)
-		err = ParseFile(tmp, pagePath)
-		if err != nil {
-			return
-		}
+		tmp := template.New("foobar").Funcs(t.Functions)
+		// err = ParseFile(tmp, pagePath)
+		// if err != nil {
+		// 	return
+		// }
 		t.Templates[basename] = tmp
 		// t.Templates[basename] = template.Must(template.New(basename).Funcs(t.Functions).ParseFiles(pagePath))
 
@@ -157,7 +163,13 @@ func (t *Templates) Load(paths ...string) (err error) {
 			}
 		}
 
-		fmt.Println(t.Templates[basename].DefinedTemplates())
+		// _, err = tmp.ParseFiles(pagePath)
+		err = ParseFile(tmp, pagePath)
+		if err != nil {
+			return
+		}
+
+		fmt.Println(basename, t.Templates[basename].DefinedTemplates())
 
 	}
 
@@ -183,6 +195,8 @@ func (t *Templates) Render(w http.ResponseWriter, template string, data interfac
 // Compile the template and return the buffer containing the rendered bytes
 func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, error) {
 
+	fmt.Println("Complie:", template)
+
 	// Look for the template
 	tmpl, ok := t.Templates[template]
 
@@ -190,12 +204,15 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 		return nil, ErrNotFound
 	}
 
+	fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
+
 	// Create a buffer so syntax errors don't return a half-rendered response body
 	buf := bufpool.Get()
 	defer bufpool.Put(buf)
 
 	if err := tmpl.Execute(buf, data); err != nil {
-		return nil, err
+		// if err := tmpl.ExecuteTemplate(buf, "content", data); err != nil {
+		return buf, err
 	}
 
 	return buf, nil
