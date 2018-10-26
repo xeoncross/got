@@ -28,9 +28,9 @@ func TestOrder(t *testing.T) {
 		buf := bytes.NewBuffer(b)
 
 		// err := templates.Execute(buf, data)
-		err := tmpl.ExecuteTemplate(buf, "layout", struct{ Name string }{Name: "John"})
+		err := tmpl.ExecuteTemplate(buf, "home", struct{ Name string }{Name: "John"})
 		if err != nil {
-			fmt.Println("buf", buf.Bytes())
+			// fmt.Println("buf", buf.Bytes())
 			t.Error(err)
 		}
 

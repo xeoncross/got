@@ -12,17 +12,6 @@ import (
 // Children define the base template using comments: { /* use basetemplate */ }
 var parentRegex = regexp.MustCompile(`\{\s*\/\*\s*use\s(\w+)\s*\*\/\s*\}`)
 
-// func LoadTemplateFile(path string) (t *template.Template, err error) {
-// 	var b []byte
-// 	b, err = ioutil.ReadFile(path)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	t, err = template.New("").Parse(string(b))
-// 	return
-// }
-
 func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error) {
 	var files []string
 	files, err = filepath.Glob(filepath.Join(dir, path))

@@ -2,17 +2,31 @@ package got
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/oxtoacart/bpool"
 )
+
+// Children define the base template using comments: { /* use basetemplate */ }
+var parentRegex = regexp.MustCompile(`\{\s*\/\*\s*use\s(\w+)\s*\*\/\s*\}`)
+
+// Error for loading missing templates
+// var ErrNotFound = errors.New("Template not found")
+
+// NotFoundError for type assertions in the caller while still providing context
+type NotFoundError struct {
+	Name string
+}
+
+func (t *NotFoundError) Error() string {
+	return fmt.Sprintf("Template %q not found", t.Name)
+}
 
 // Might provide a default error template, probably not
 // const errorTemplateHTML = `
@@ -36,68 +50,17 @@ import (
 // var ErrorTemplate = template.Must(template.New("error").Parse(errorTemplateHTML))
 
 // FindTemplates in path recursively
-func FindTemplates(path string, extension string) (paths []string, err error) {
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err == nil {
-			if strings.Contains(path, extension) {
-				paths = append(paths, path)
-			}
-		}
-		return err
-	})
-	return
-}
-
-// ParseFile with custom name instead of using .ParseFiles()
-func ParseFile(t *template.Template, path string) (err error) {
-	// basename := filepath.Base(path)
-	// basename = strings.TrimSuffix(basename, filepath.Ext(basename))
-
-	// fmt.Println(path, basename)
-
-	var b []byte
-	b, err = ioutil.ReadFile(path)
-	if err != nil {
-		return
-	}
-	// tmpl := t.New(basename)
-	// _, err = tmpl.Parse(string(b))
-
-	_, err = t.Parse(string(b))
-
-	if err != nil {
-		return
-	}
-
-	// fmt.Println(path, t.DefinedTemplates())
-	// t = tmpl
-	return
-}
-
-// AddTemplates found in path recursively
-func AddTemplates(Templates *template.Template, path string, extension string) (err error) {
-	return filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err == nil {
-			if strings.Contains(path, extension) {
-
-				fmt.Printf("\tAdding: %s\n", filepath.Base(path))
-				// var Templates *template.Template
-
-				// Templates named "filename.html"
-				_, err = Templates.ParseFiles(path)
-
-				// err = ParseFile(Templates, path)
-
-				if err != nil {
-					return err
-				}
-				// Templates = tmpl
-
-			}
-		}
-		return err
-	})
-}
+// func FindTemplates(path string, extension string) (paths []string, err error) {
+// 	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+// 		if err == nil {
+// 			if strings.Contains(path, extension) {
+// 				paths = append(paths, path)
+// 			}
+// 		}
+// 		return err
+// 	})
+// 	return
+// }
 
 // Templates Collection
 type Templates struct {
@@ -127,50 +90,88 @@ func New(extension string) *Templates {
 	}
 }
 
-// Load templates segregated by template name
-// First item is the child pages, the next and following are the layouts/includes:
-// Load("pages/", "layouts/", "partials/")
-func (t *Templates) Load(paths ...string) (err error) {
-
-	var pagesPath string
-	pagesPath, paths = strings.TrimRight(paths[0], "/"), paths[1:]
-
-	var pages []string
-	pages, err = FindTemplates(pagesPath, t.Extension)
+func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error) {
+	var files []string
+	files, err = filepath.Glob(filepath.Join(dir, path))
 	if err != nil {
 		return
 	}
 
-	for _, pagePath := range pages {
-		basename := filepath.Base(pagePath)
-		basename = strings.TrimSuffix(basename, filepath.Ext(basename))
+	templates = make(map[string][]byte)
 
-		fmt.Println(pagePath, basename)
-
-		// Load this template
-		tmp := template.New("foobar").Funcs(t.Functions)
-		// err = ParseFile(tmp, pagePath)
-		// if err != nil {
-		// 	return
-		// }
-		t.Templates[basename] = tmp
-		// t.Templates[basename] = template.Must(template.New(basename).Funcs(t.Functions).ParseFiles(pagePath))
-
-		// Each add all the includes, partials, and layouts
-		if len(paths) > 0 {
-			for _, templateDir := range paths {
-				AddTemplates(t.Templates[basename], templateDir, t.Extension)
-			}
-		}
-
-		// _, err = tmp.ParseFiles(pagePath)
-		err = ParseFile(tmp, pagePath)
+	for _, path = range files {
+		// fmt.Printf("Loading: %s\n", path)
+		var b []byte
+		b, err = ioutil.ReadFile(path)
 		if err != nil {
 			return
 		}
 
-		fmt.Println(basename, t.Templates[basename].DefinedTemplates())
+		// Convert "templates/layouts/base.html" to "layouts/base"
+		name := strings.TrimPrefix(filepath.Clean(path), filepath.Clean(dir)+"/")
+		name = strings.TrimSuffix(name, filepath.Ext(name))
 
+		fmt.Printf("%q = %q\n", name, b)
+		templates[name] = b
+	}
+
+	return
+}
+
+func (t *Templates) Load(templatesDir string) (err error) {
+
+	// Child pages to render
+	var pages map[string][]byte
+	pages, err = LoadTemplateFiles(templatesDir, "pages/*"+t.Extension)
+	if err != nil {
+		return
+	}
+
+	// Shared templates across multiple pages (sidebars, scripts, footers, etc...)
+	var includes map[string][]byte
+	includes, err = LoadTemplateFiles(templatesDir, "includes/*"+t.Extension)
+	if err != nil {
+		return
+	}
+
+	// Layouts used by pages
+	var layouts map[string][]byte
+	layouts, err = LoadTemplateFiles(templatesDir, "layouts/*"+t.Extension)
+	if err != nil {
+		return
+	}
+
+	var tmpl *template.Template
+	for name, b := range pages {
+
+		matches := parentRegex.FindSubmatch(b)
+		basename := filepath.Base(name)
+
+		tmpl, err = template.New(basename).Parse(string(b))
+
+		// Uses a layout
+		if len(matches) == 2 {
+
+			l, ok := layouts[filepath.Join("layouts", string(matches[1]))]
+			if !ok {
+				err = fmt.Errorf("Unknown layout %s%s\n", matches[1], t.Extension)
+				return
+			}
+
+			tmpl.New("layout").Parse(string(l))
+		}
+
+		if len(includes) > 0 {
+			for name, src := range includes {
+				// fmt.Printf("\tAdding:%s = %s\n", name, string(src))
+				_, err = tmpl.New(name).Parse(string(src))
+				if err != nil {
+					return
+				}
+			}
+		}
+
+		t.Templates[basename] = tmpl
 	}
 
 	return
@@ -195,31 +196,29 @@ func (t *Templates) Render(w http.ResponseWriter, template string, data interfac
 // Compile the template and return the buffer containing the rendered bytes
 func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, error) {
 
-	fmt.Println("Complie:", template)
+	fmt.Println("Compile:", template)
 
 	// Look for the template
 	tmpl, ok := t.Templates[template]
 
 	if !ok {
-		return nil, ErrNotFound
+		err := &NotFoundError{template}
+		return nil, err
 	}
 
-	fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
+	// fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
 
 	// Create a buffer so syntax errors don't return a half-rendered response body
 	buf := bufpool.Get()
 	defer bufpool.Put(buf)
 
-	if err := tmpl.Execute(buf, data); err != nil {
-		// if err := tmpl.ExecuteTemplate(buf, "content", data); err != nil {
+	// if err := tmpl.Execute(buf, data); err != nil {
+	if err := tmpl.ExecuteTemplate(buf, "layout", data); err != nil {
 		return buf, err
 	}
 
 	return buf, nil
 }
-
-// Error for loading missing templates
-var ErrNotFound = errors.New("Template not found")
 
 // Make sure any template errors are caught before sending content to client
 // A BufferPool will reduce allocs
