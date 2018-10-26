@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/oxtoacart/bpool"
 )
 
 // Children define the base template using comments: { /* use basetemplate */ }
@@ -111,7 +108,7 @@ func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error
 		name := strings.TrimPrefix(filepath.Clean(path), filepath.Clean(dir)+"/")
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 
-		fmt.Printf("%q = %q\n", name, b)
+		// fmt.Printf("%q = %q\n", name, b)
 		templates[name] = b
 	}
 
@@ -178,25 +175,25 @@ func (t *Templates) Load(templatesDir string) (err error) {
 }
 
 // Render the template & data to the ResponseWriter safely
-func (t *Templates) Render(w http.ResponseWriter, template string, data interface{}, status int) error {
-
-	buf, err := t.Compile(template, data)
-	if err != nil {
-		return err
-	}
-
-	w.WriteHeader(status)
-	// Set the header and write the buffer to the http.ResponseWriter
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	buf.WriteTo(w)
-
-	return nil
-}
+// func (t *Templates) Render(w http.ResponseWriter, template string, data interface{}, status int) error {
+//
+// 	buf, err := t.Compile(template, data)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	w.WriteHeader(status)
+// 	// Set the header and write the buffer to the http.ResponseWriter
+// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+// 	buf.WriteTo(w)
+//
+// 	return nil
+// }
 
 // Compile the template and return the buffer containing the rendered bytes
 func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, error) {
 
-	fmt.Println("Compile:", template)
+	// fmt.Println("Compile:", template)
 
 	// Look for the template
 	tmpl, ok := t.Templates[template]
@@ -209,8 +206,11 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 	// fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
 
 	// Create a buffer so syntax errors don't return a half-rendered response body
-	buf := bufpool.Get()
-	defer bufpool.Put(buf)
+	// buf := bufpool.Get()
+	// defer bufpool.Put(buf) // TODO fix this as it removes the content!
+
+	var b []byte
+	buf := bytes.NewBuffer(b)
 
 	// if err := tmpl.Execute(buf, data); err != nil {
 	if err := tmpl.ExecuteTemplate(buf, "layout", data); err != nil {
@@ -222,8 +222,8 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 
 // Make sure any template errors are caught before sending content to client
 // A BufferPool will reduce allocs
-var bufpool *bpool.BufferPool
-
-func init() {
-	bufpool = bpool.NewBufferPool(64)
-}
+// var bufpool *bpool.BufferPool
+//
+// func init() {
+// 	bufpool = bpool.NewBufferPool(64)
+// }

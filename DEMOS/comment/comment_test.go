@@ -22,13 +22,13 @@ func TestOrder(t *testing.T) {
 	}
 
 	for name, tmpl := range templates {
-		fmt.Printf("\t%s = %s\n", name, tmpl.DefinedTemplates())
+		fmt.Printf("\t%s%s\n", name, tmpl.DefinedTemplates())
 
 		var b []byte
 		buf := bytes.NewBuffer(b)
 
 		// err := templates.Execute(buf, data)
-		err := tmpl.ExecuteTemplate(buf, "home", struct{ Name string }{Name: "John"})
+		err := tmpl.ExecuteTemplate(buf, "layout", struct{ Name string }{Name: "John"})
 		if err != nil {
 			// fmt.Println("buf", buf.Bytes())
 			t.Error(err)

@@ -1,7 +1,6 @@
 package got
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -54,14 +53,14 @@ func TestTemplates(t *testing.T) {
 	// exist in some location known to the program.
 	dir, err := createTestDir([]templateFile{
 		// We have two pages each using a different parent layout
-		{"pages/home.html", `{{define "content"}}home{{end}}{{/* use one */}}`},
-		{"pages/about.html", `{{define "content"}}about{{end}}{{/* use two */}}`},
+		{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
+		{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
 		// We have two different layouts (using two different styles)
-		{"layouts/one.html", `Layout 1: {{block "content" .}}{{end}}{{block "includes/sidebar" .}}{{end}}`},
-		{"layouts/two.html", `Layout 2: {{template "content" .}}{{template "includes/sidebar" .}}`},
+		{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
+		{"layouts/two.html", `Layout 2: {{.Name}} {{template "content" .}} {{template "includes/sidebar" .}}`},
 		// We have two includes shared among the pages
 		{"includes/header.html", `header`},
-		{"includes/sidebar.html", `sidebar`},
+		{"includes/sidebar.html", `sidebar {{.Name}}`},
 	})
 
 	if err != nil {
@@ -78,9 +77,10 @@ func TestTemplates(t *testing.T) {
 		t.Error(err)
 	}
 
-	for name, tmpl := range templates.Templates {
-		fmt.Printf("%s = %s %v\n", name, tmpl.Name(), tmpl.DefinedTemplates())
-	}
+	// for name, tmpl := range templates.Templates {
+	// 	fmt.Printf("%s = %s %v\n", name, tmpl.Name(), tmpl.DefinedTemplates())
+	// 	fmt.Printf("%+v\n", tmpl.Tree)
+	// }
 
 	data := struct{ Name string }{"John"}
 
@@ -89,101 +89,83 @@ func TestTemplates(t *testing.T) {
 		log.Fatalf("template execution: %s", err)
 	}
 
-	fmt.Printf("Output: %q\n", b.Bytes())
+	got := string(b.Bytes())
+	want := "Layout 1: John home John sidebar John"
+
+	if got != want {
+		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+	}
+
+	// fmt.Printf("home: %q\n", b.Bytes())
+
+	data = struct{ Name string }{"Jane"}
+
+	b, err = templates.Compile("about", data)
+	if err != nil {
+		log.Fatalf("template execution: %s", err)
+	}
+
+	got = string(b.Bytes())
+	want = "Layout 2: Jane about Jane sidebar Jane"
+
+	if got != want {
+		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+	}
+
+	// fmt.Printf("about: %q\n", b.Bytes())
 
 }
 
-// func TestChild(t *testing.T) {
-// 	var templates = template.New("home.html")
-//
-// 	var err error
-//
-// 	_, err = templates.ParseGlob("samples/child/*.html")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	fmt.Println(templates.DefinedTemplates())
-//
-// 	req, err := http.NewRequest("GET", "/", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-//
-// 	rr := httptest.NewRecorder()
-//
-// 	router := http.NewServeMux()
-// 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-// 		err := templates.Execute(w, nil)
-// 		if err != nil {
-// 			log.Println(err)
-// 			fmt.Fprint(w, err)
-// 		}
-// 	})
-// 	router.ServeHTTP(rr, req)
-//
-// 	got := rr.Body.String()
-// 	want := "Hi"
-//
-// 	if status := rr.Code; status != http.StatusOK {
-// 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-// 		t.Error(rr.Body.String())
-// 	}
-//
-// 	if got != want {
-// 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
-// 	}
-//
-// }
+func Benchmark(b *testing.B) {
 
-// func DontTestNative(t *testing.T) {
-// 	var templates = template.New("content")
-//
-// 	var err error
-//
-// 	_, err = templates.ParseGlob("samples/native/layouts/*.html")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	_, err = templates.ParseGlob("samples/native/includes/*.html")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	_, err = templates.ParseGlob("samples/native/pages/*.html")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-// 	fmt.Println(templates.DefinedTemplates())
-//
-// 	req, err := http.NewRequest("GET", "/", nil)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-//
-// 	rr := httptest.NewRecorder()
-//
-// 	router := http.NewServeMux()
-// 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-// 		err := templates.Execute(w, nil)
-// 		if err != nil {
-// 			log.Println(err)
-// 			fmt.Fprint(w, err)
-// 		}
-// 	})
-// 	router.ServeHTTP(rr, req)
-//
-// 	got := rr.Body.String()
-// 	want := "Hi"
-//
-// 	if status := rr.Code; status != http.StatusOK {
-// 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-// 		t.Error(rr.Body.String())
-// 	}
-//
-// 	if got != want {
-// 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
-// 	}
-//
-// }
+	// Here we create a temporary directory and populate it with our sample
+	// template definition files; usually the template files would already
+	// exist in some location known to the program.
+	dir, err := createTestDir([]templateFile{
+		// We have two pages each using a different parent layout
+		{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
+		{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
+		// We have two different layouts (using two different styles)
+		{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
+		{"layouts/two.html", `Layout 2: {{.Name}} {{template "content" .}} {{template "includes/sidebar" .}}`},
+		// We have two includes shared among the pages
+		{"includes/header.html", `header`},
+		{"includes/sidebar.html", `sidebar {{.Name}}`},
+	})
+
+	if err != nil {
+		b.Error(err)
+	}
+
+	// Clean up after the test; another quirk of running as an example.
+	defer os.RemoveAll(dir)
+
+	templates := New(".html")
+	err = templates.Load(dir)
+
+	if err != nil {
+		b.Error(err)
+	}
+
+	b.ResetTimer()
+
+	data := struct{ Name string }{"John"}
+
+	for i := 0; i < b.N; i++ {
+
+		body, err := templates.Compile("home", data)
+		if err != nil {
+			b.Error(err)
+		}
+
+		got := string(body.Bytes())
+		want := "Layout 1: John home John sidebar John"
+
+		if got != want {
+			b.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+		}
+	}
+}
 
 /*
 func TestTemplates(t *testing.T) {
