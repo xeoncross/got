@@ -175,6 +175,14 @@ func (t *Templates) Load(templatesDir string) (err error) {
 	return
 }
 
+// DefinedTemplates loaded by got (for debugging)
+func (t *Templates) DefinedTemplates() (out string) {
+	for _, tmpl := range t.Templates {
+		out += fmt.Sprintf("%s%s\n", tmpl.Name(), tmpl.DefinedTemplates())
+	}
+	return
+}
+
 // Render the template & data to the ResponseWriter safely
 func (t *Templates) Render(w http.ResponseWriter, template string, data interface{}, status int) error {
 
@@ -191,26 +199,17 @@ func (t *Templates) Render(w http.ResponseWriter, template string, data interfac
 	return nil
 }
 
-// Compile the template and return the buffer containing the rendered bytes
-// func (t *Templates) CompilePool(template string, data interface{}, buf *bytes.Buffer) error {
-//
-// 	// fmt.Println("Compile:", template)
+// CompileWithBuffer for the template bytes
+// Not enough benefit for the added complexity
+// func (t *Templates) CompileWithBuffer(template string, data interface{}, buf *bytes.Buffer) error {
 //
 // 	// Look for the template
 // 	tmpl, ok := t.Templates[template]
 //
 // 	if !ok {
-// 		err := &NotFoundError{template}
-// 		return err
+// 		return &NotFoundError{template}
 // 	}
 //
-// 	// fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
-//
-// 	// Create a buffer so syntax errors don't return a half-rendered response body
-// 	// buf := bufpool.Get()
-// 	// defer bufpool.Put(buf) // TODO fix this as it removes the content!
-//
-// 	// if err := tmpl.Execute(buf, data); err != nil {
 // 	if err := tmpl.ExecuteTemplate(buf, "layout", data); err != nil {
 // 		return err
 // 	}
@@ -218,7 +217,7 @@ func (t *Templates) Render(w http.ResponseWriter, template string, data interfac
 // 	return nil
 // }
 
-// // Compile the template and return the buffer containing the rendered bytes
+// Compile the template and return the buffer containing the rendered bytes
 func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, error) {
 
 	// Look for the template
@@ -228,8 +227,6 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 		err := &NotFoundError{template}
 		return nil, err
 	}
-
-	// fmt.Printf("\t%s\n", tmpl.DefinedTemplates())
 
 	// Create a buffer so syntax errors don't return a half-rendered response body
 	var b []byte
@@ -245,9 +242,7 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 // Make sure any template errors are caught before sending content to client
 // A BufferPool will reduce allocs
 // var bufpool *bpool.BufferPool
-// var bufpool *bpool.SizedBufferPool
 //
 // func init() {
-// 	// bufpool = bpool.NewBufferPool(32)
-// 	bufpool = bpool.NewSizedBufferPool(1024, 64)
+// 	bufpool = bpool.NewBufferPool(32)
 // }

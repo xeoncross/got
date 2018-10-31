@@ -60,6 +60,10 @@ func createTestDir(files []templateFile) (dir string, err error) {
 	return
 }
 
+//
+// Tests
+//
+
 // Here we demonstrate loading a set of templates from a directory.
 func TestTemplates(t *testing.T) {
 	// Here we create a temporary directory and populate it with our sample
@@ -81,13 +85,8 @@ func TestTemplates(t *testing.T) {
 		t.Error(err)
 	}
 
-	// for name, tmpl := range templates.Templates {
-	// 	fmt.Printf("%s = %s %v\n", name, tmpl.Name(), tmpl.DefinedTemplates())
-	// 	fmt.Printf("%+v\n", tmpl.Tree)
-	// }
-
+	// Layout One
 	data := struct{ Name string }{"John"}
-
 	b, err := templates.Compile("home", data)
 	if err != nil {
 		log.Fatalf("template execution: %s", err)
@@ -100,10 +99,8 @@ func TestTemplates(t *testing.T) {
 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
 	}
 
-	// fmt.Printf("home: %q\n", b.Bytes())
-
+	// Layout Two
 	data = struct{ Name string }{"Jane"}
-
 	b, err = templates.Compile("about", data)
 	if err != nil {
 		log.Fatalf("template execution: %s", err)
@@ -115,8 +112,6 @@ func TestTemplates(t *testing.T) {
 	if got != want {
 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
 	}
-
-	// fmt.Printf("about: %q\n", b.Bytes())
 
 }
 
@@ -160,6 +155,53 @@ func BenchmarkCompile(b *testing.B) {
 		}
 	}
 }
+
+/*
+func BenchmarkCompileBuffer(b *testing.B) {
+
+	// Here we create a temporary directory and populate it with our sample
+	// template definition files; usually the template files would already
+	// exist in some location known to the program.
+	dir, err := createTestDir(testingTemplateFiles)
+
+	if err != nil {
+		b.Error(err)
+	}
+
+	// Clean up after the test; another quirk of running as an example.
+	defer os.RemoveAll(dir)
+
+	templates := New(".html")
+	err = templates.Load(dir)
+
+	if err != nil {
+		b.Error(err)
+	}
+
+	b.ResetTimer()
+
+	data := struct{ Name string }{"John"}
+
+	for i := 0; i < b.N; i++ {
+
+		buf := bufpool.Get()
+
+		err := templates.CompileWithBuffer("home", data, buf)
+		if err != nil {
+			b.Error(err)
+		}
+
+		got := string(buf.Bytes())
+		want := "Layout 1: John home John sidebar John"
+
+		bufpool.Put(buf)
+
+		if got != want {
+			b.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+		}
+	}
+}
+*/
 
 func BenchmarkNativeTemplates(b *testing.B) {
 
