@@ -1,6 +1,8 @@
 package got
 
 import (
+	"bytes"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +18,18 @@ import (
 type templateFile struct {
 	name     string
 	contents string
+}
+
+var testingTemplateFiles = []templateFile{
+	// We have two pages each using a different parent layout
+	{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
+	{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
+	// We have two different layouts (using two different styles)
+	{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
+	{"layouts/two.html", `Layout 2: {{.Name}} {{template "content" .}} {{template "includes/sidebar" .}}`},
+	// We have two includes shared among the pages
+	{"includes/header.html", `header`},
+	{"includes/sidebar.html", `sidebar {{.Name}}`},
 }
 
 func createTestDir(files []templateFile) (dir string, err error) {
@@ -51,17 +65,7 @@ func TestTemplates(t *testing.T) {
 	// Here we create a temporary directory and populate it with our sample
 	// template definition files; usually the template files would already
 	// exist in some location known to the program.
-	dir, err := createTestDir([]templateFile{
-		// We have two pages each using a different parent layout
-		{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
-		{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
-		// We have two different layouts (using two different styles)
-		{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
-		{"layouts/two.html", `Layout 2: {{.Name}} {{template "content" .}} {{template "includes/sidebar" .}}`},
-		// We have two includes shared among the pages
-		{"includes/header.html", `header`},
-		{"includes/sidebar.html", `sidebar {{.Name}}`},
-	})
+	dir, err := createTestDir(testingTemplateFiles)
 
 	if err != nil {
 		t.Error(err)
@@ -116,22 +120,12 @@ func TestTemplates(t *testing.T) {
 
 }
 
-func Benchmark(b *testing.B) {
+func BenchmarkCompile(b *testing.B) {
 
 	// Here we create a temporary directory and populate it with our sample
 	// template definition files; usually the template files would already
 	// exist in some location known to the program.
-	dir, err := createTestDir([]templateFile{
-		// We have two pages each using a different parent layout
-		{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
-		{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
-		// We have two different layouts (using two different styles)
-		{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
-		{"layouts/two.html", `Layout 2: {{.Name}} {{template "content" .}} {{template "includes/sidebar" .}}`},
-		// We have two includes shared among the pages
-		{"includes/header.html", `header`},
-		{"includes/sidebar.html", `sidebar {{.Name}}`},
-	})
+	dir, err := createTestDir(testingTemplateFiles)
 
 	if err != nil {
 		b.Error(err)
@@ -159,6 +153,56 @@ func Benchmark(b *testing.B) {
 		}
 
 		got := string(body.Bytes())
+		want := "Layout 1: John home John sidebar John"
+
+		if got != want {
+			b.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+		}
+	}
+}
+
+func BenchmarkNativeTemplates(b *testing.B) {
+
+	// Here we create a temporary directory and populate it with our sample
+	// template definition files; usually the template files would already
+	// exist in some location known to the program.
+	dir, err := createTestDir(testingTemplateFiles)
+
+	if err != nil {
+		b.Error(err)
+	}
+
+	// Clean up after the test; another quirk of running as an example.
+	defer os.RemoveAll(dir)
+
+	t := template.New("")
+
+	var by []byte
+	for _, name := range []string{"pages/home", "layouts/one", "includes/sidebar"} {
+		by, err = ioutil.ReadFile(filepath.Join(dir, name+".html"))
+		if err != nil {
+			b.Error(err)
+		}
+		_, err = t.New(name).Parse(string(by))
+		if err != nil {
+			b.Error(err)
+		}
+	}
+
+	b.ResetTimer()
+
+	data := struct{ Name string }{"John"}
+
+	for i := 0; i < b.N; i++ {
+
+		by = nil
+		buf := bytes.NewBuffer(by)
+
+		if err := t.ExecuteTemplate(buf, "layouts/one", data); err != nil {
+			b.Error(err)
+		}
+
+		got := string(buf.Bytes())
 		want := "Layout 1: John home John sidebar John"
 
 		if got != want {
