@@ -199,24 +199,6 @@ func (t *Templates) Render(w http.ResponseWriter, template string, data interfac
 	return nil
 }
 
-// CompileWithBuffer for the template bytes
-// Not enough benefit for the added complexity
-// func (t *Templates) CompileWithBuffer(template string, data interface{}, buf *bytes.Buffer) error {
-//
-// 	// Look for the template
-// 	tmpl, ok := t.Templates[template]
-//
-// 	if !ok {
-// 		return &NotFoundError{template}
-// 	}
-//
-// 	if err := tmpl.ExecuteTemplate(buf, "layout", data); err != nil {
-// 		return err
-// 	}
-//
-// 	return nil
-// }
-
 // Compile the template and return the buffer containing the rendered bytes
 func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, error) {
 
@@ -238,6 +220,25 @@ func (t *Templates) Compile(template string, data interface{}) (*bytes.Buffer, e
 
 	return buf, nil
 }
+
+// Not enough benefit for the added complexity
+//
+// CompileWithBuffer for the template bytes
+// func (t *Templates) CompileWithBuffer(template string, data interface{}, buf *bytes.Buffer) error {
+//
+// 	// Look for the template
+// 	tmpl, ok := t.Templates[template]
+//
+// 	if !ok {
+// 		return &NotFoundError{template}
+// 	}
+//
+// 	if err := tmpl.ExecuteTemplate(buf, "layout", data); err != nil {
+// 		return err
+// 	}
+//
+// 	return nil
+// }
 
 // Make sure any template errors are caught before sending content to client
 // A BufferPool will reduce allocs

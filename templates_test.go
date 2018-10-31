@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,7 +87,9 @@ func TestTemplates(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Layout One
+	//
+	// 1: Test page + include + layout
+	//
 	data := struct{ Name string }{"John"}
 	b, err := templates.Compile("home", data)
 	if err != nil {
@@ -99,7 +103,9 @@ func TestTemplates(t *testing.T) {
 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
 	}
 
-	// Layout Two
+	//
+	// 2: Test layout isolation
+	//
 	data = struct{ Name string }{"Jane"}
 	b, err = templates.Compile("about", data)
 	if err != nil {
@@ -113,6 +119,37 @@ func TestTemplates(t *testing.T) {
 		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
 	}
 
+	//
+	// 3: Test HTTP handler
+	//
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+
+	router := http.NewServeMux()
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		data = struct{ Name string }{"Bob"}
+		err := templates.Render(w, "home", data, http.StatusOK)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	router.ServeHTTP(rr, req)
+
+	got = rr.Body.String()
+	want = "Layout 1: Bob home Bob sidebar Bob"
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Error(rr.Body.String())
+	}
+
+	if got != want {
+		t.Errorf("handler returned wrong body:\n\tgot:  %q\n\twant: %q", got, want)
+	}
 }
 
 func BenchmarkCompile(b *testing.B) {

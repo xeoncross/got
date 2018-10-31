@@ -2,27 +2,32 @@
 
 The native [`html/template` engine](https://golang.org/pkg/html/template/) can handle variables, template inheritance, helper functions, and sanitizing of HTML, CSS, Javascript, and URIs. However, using `html/template` _easily_ requires a bit of boilerplate (and forethought) which this package provides in a clever, minimal wrapper.
 
-This package is for people who want use the stdlib `html/template` when building/using HTML templates.
+1) This package is for people who want use the stdlib `html/template` when building/using HTML templates.
 
-# Documentation
-
-This library requires you to structure your templates on-disk in a certain, logical way.
+2) This package requires you to organize your templates _on-disk_ in a certain, logical way.
 
 
 ## Usage
 
-You can use any template extension you want with `got`.
+Specify the directory containing your templates, and the file extension for template files.
 
-    templates := got.New(".html")
-    err = templates.Load("templates/")
+    templates, err := got.New("templates/", ".html")
 
 Once loaded, rendering templates inside a handler is as easy as passing the `http.ResponseWriter`, template name, data, and a status.
 
-    err = templates.Render(w, "home", data, http.StatusOK)
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+      data = struct{ Name string }{"Bob"}
+      err := templates.Render(w, "home", data, http.StatusOK)
 
-Should and error be encountered, `got` will prevent a partial response from being sent, allowing you to handle the error as you see fit.
+      if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+      }
+    })
 
-## Convention
+Should an error be encountered, `got` will prevent a partial response from being sent, allowing you to handle the error (as shown above).
+
+
+## Conventions
 
 `xeoncross/got` expects layout files to live in one of three folders based on their usage:
 
@@ -43,7 +48,8 @@ Each page is the "starting" point. For example, you might have a file structure 
     includes/
       sidebar.html
 
-In this example, imagine the "profile" and "posts" page use the `forum.html` layout, while the "home" & "about" pages use `main.html` + `sidebar.html`.
+In this example, imagine the "profile" and "posts" page use the `forum.html` layout, while the "home" & "about" pages use `main.html` + `sidebar.html`. Every page has access to all includes.
+
 
 ## The Pain Point: Inheritance
 
@@ -55,6 +61,7 @@ With plain `html/template` you can't specify a template parent from the child. I
 - https://blog.questionable.services/article/approximating-html-template-inheritance/
 - https://www.kylehq.com/2017/05/golang-templates---what-i-missed/ ([gist](https://gitlab.com/snippets/1662623))
 
+
 ## Solution
 
 We solve this problem by adding a simple [template comment](https://golang.org/pkg/text/template/#hdr-Actions) to the child:
@@ -64,25 +71,29 @@ We solve this problem by adding a simple [template comment](https://golang.org/p
 This comment is removed by `html/template` in the final output, but tells `got` to load this child template inside `mobilelayout.html`.
 
 
-
 ## Benchmarks
 
 This library adds almost no overhead to `html/template` for rendering templates. This package is all about *layout conventions* without interfering with performance.
 
     $ go test -bench=. --benchmem -test.cpu=1
-    goos: darwin
-    goarch: amd64
 
-    BenchmarkCompile         	  300000	      3822 ns/op	    1256 B/op	      30 allocs/op
-    BenchmarkNativeTemplates 	  300000	      3794 ns/op	    1256 B/op	      30 allocs/op
+    BenchmarkCompile         	  300000	      4079 ns/op	    1256 B/op	      30 allocs/op
+    BenchmarkNativeTemplates 	  300000	      4028 ns/op	    1256 B/op	      30 allocs/op
 
-This library is as fast as `html/template` because all organizational sorting and inheritance calculations are performed at the start.
+This library is as fast as `html/template` because the organizational sorting and inheritance calculations are performed on the initial load.
+
+## Roadmap
+
+- Template Functions
+- Allow registering functions to provide global template variables: (nonces, session data, etc...)
+
 
 ## Template Functions (Recommended)
 
 Template functions provide handy helpers for doing common tasks. The [Masterminds/sprig](https://github.com/Masterminds/sprig) package contains +100 helper functions (inspired by `underscore.js`) you can use to augment your templates.
 
 If building HTML forms, or using the CSS framework Bootstrap, you might want to look at [gobuffalo/tags](https://github.com/gobuffalo/tags) for helper functions to generate HTML.
+
 
 ## Alternatives
 
