@@ -63,6 +63,7 @@ func (t *NotFoundError) Error() string {
 // Templates Collection
 type Templates struct {
 	Extension string
+	Dir       string
 	Templates map[string]*template.Template
 	Functions template.FuncMap
 }
@@ -80,12 +81,15 @@ var DefaultFunctions = template.FuncMap{
 }
 
 // New Templates collection
-func New(extension string) *Templates {
-	return &Templates{
+func New(templatesDir, extension string) (*Templates, error) {
+	t := &Templates{
 		Extension: extension,
+		Dir:       templatesDir,
 		Templates: make(map[string]*template.Template),
 		Functions: DefaultFunctions,
 	}
+
+	return t, t.Load()
 }
 
 func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error) {
@@ -116,25 +120,25 @@ func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error
 	return
 }
 
-func (t *Templates) Load(templatesDir string) (err error) {
+func (t *Templates) Load() (err error) {
 
 	// Child pages to render
 	var pages map[string][]byte
-	pages, err = LoadTemplateFiles(templatesDir, "pages/*"+t.Extension)
+	pages, err = LoadTemplateFiles(t.Dir, "pages/*"+t.Extension)
 	if err != nil {
 		return
 	}
 
 	// Shared templates across multiple pages (sidebars, scripts, footers, etc...)
 	var includes map[string][]byte
-	includes, err = LoadTemplateFiles(templatesDir, "includes/*"+t.Extension)
+	includes, err = LoadTemplateFiles(t.Dir, "includes/*"+t.Extension)
 	if err != nil {
 		return
 	}
 
 	// Layouts used by pages
 	var layouts map[string][]byte
-	layouts, err = LoadTemplateFiles(templatesDir, "layouts/*"+t.Extension)
+	layouts, err = LoadTemplateFiles(t.Dir, "layouts/*"+t.Extension)
 	if err != nil {
 		return
 	}
