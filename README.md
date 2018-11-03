@@ -1,9 +1,8 @@
 # Go T(emplates)
 
-The native [`html/template` engine](https://golang.org/pkg/html/template/) can handle variables, template inheritance, helper functions, and sanitizing of HTML, CSS, Javascript, and URIs. However, using `html/template` _easily_ requires a bit of boilerplate (and forethought) which this package provides in a clever, minimal wrapper.
+The native Go [`html/template` library](https://golang.org/pkg/html/template/) is powerful. Template inheritance, helper functions, and proper sanitizing of HTML, CSS, and Javascript are all provided. However, using `html/template` requires a bit of boilerplate (and forethought) which this package provides in a clever, minimal wrapper.
 
-1) This package is for people who want use the stdlib `html/template` when building/using HTML templates.
-
+1) This library is for people who want use `html/template`.
 2) This package requires you to organize your templates _on-disk_ in a certain, logical way.
 
 
