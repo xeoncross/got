@@ -70,6 +70,13 @@ We solve this problem by adding a simple [template comment](https://golang.org/p
 
 This comment is removed by `html/template` in the final output, but tells `got` to load this child template inside `mobilelayout.html`.
 
+## Subfolders
+
+Simple sites can easily fit everything under the `pages`, `includes`, and `layouts` namespaces. However, for better organization of your HTML snippets you can also use subfolders. For example, you might have custom sidebar modules you wish to isolate to their own files. Including items in subfolders (and beyond) is as easy as regular files. Imagine you had the following file:
+
+    /templates/includes/sidebar/active_users.html
+
+You can access this in your templates using the string `includes/sidebar/active_users`.
 
 ## Benchmarks
 
@@ -81,11 +88,6 @@ This library adds almost no overhead to `html/template` for rendering templates.
     BenchmarkNativeTemplates 	  300000	      4028 ns/op	    1256 B/op	      30 allocs/op
 
 This library is as fast as `html/template` because the organizational sorting and inheritance calculations are performed on the initial load.
-
-## Roadmap
-
-- Template Functions
-- Allow registering functions to provide global template variables: (nonces, session data, etc...)
 
 
 ## Template Functions (Recommended)

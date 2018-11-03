@@ -24,7 +24,8 @@ type templateFile struct {
 
 var testingTemplateFiles = []templateFile{
 	// We have two pages each using a different parent layout
-	{"pages/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
+	// One of the pages is using a subfolder
+	{"pages/home/home.html", `{{define "content"}}home {{.Name}}{{end}} {{/* use one */}}`},
 	{"pages/about.html", `{{define "content"}}about {{.Name}}{{end}}{{/* use two */}}`},
 	// We have two different layouts (using two different styles)
 	{"layouts/one.html", `Layout 1: {{.Name}} {{block "content" .}}{{end}} {{block "includes/sidebar" .}}{{end}}`},
@@ -254,7 +255,7 @@ func BenchmarkNativeTemplates(b *testing.B) {
 	t := template.New("")
 
 	var by []byte
-	for _, name := range []string{"pages/home", "layouts/one", "includes/sidebar"} {
+	for _, name := range []string{"pages/home/home", "layouts/one", "includes/sidebar"} {
 		by, err = ioutil.ReadFile(filepath.Join(dir, name+".html"))
 		if err != nil {
 			b.Error(err)

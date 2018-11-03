@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
 // Children define the base template using comments: { /* use basetemplate */ }
@@ -47,37 +45,12 @@ func (t *NotFoundError) Error() string {
 // // Template for displaying errors
 // var ErrorTemplate = template.Must(template.New("error").Parse(errorTemplateHTML))
 
-// FindTemplates in path recursively
-// func FindTemplates(path string, extension string) (paths []string, err error) {
-// 	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-// 		if err == nil {
-// 			if strings.Contains(path, extension) {
-// 				paths = append(paths, path)
-// 			}
-// 		}
-// 		return err
-// 	})
-// 	return
-// }
-
 // Templates Collection
 type Templates struct {
 	Extension string
 	Dir       string
 	Templates map[string]*template.Template
 	Functions template.FuncMap
-}
-
-// DefaultFunctions for templates
-var DefaultFunctions = template.FuncMap{
-	// Allow unsafe injection into HTML
-	"noescape": func(a ...interface{}) template.HTML {
-		return template.HTML(fmt.Sprint(a...))
-	},
-	"title": strings.Title,
-	"upper": strings.ToUpper,
-	"lower": strings.ToLower,
-	"trim":  strings.TrimSpace,
 }
 
 // New Templates collection
@@ -89,56 +62,41 @@ func New(templatesDir, extension string) (*Templates, error) {
 		Functions: DefaultFunctions,
 	}
 
-	return t, t.Load()
+	return t, t.load()
 }
 
-func LoadTemplateFiles(dir, path string) (templates map[string][]byte, err error) {
-	var files []string
-	files, err = filepath.Glob(filepath.Join(dir, path))
-	if err != nil {
-		return
+// Funcs function map for templates
+func (t *Templates) Funcs(functions template.FuncMap) *Templates {
+	for _, tmpl := range t.Templates {
+		tmpl.Funcs(functions)
 	}
 
-	templates = make(map[string][]byte)
-
-	for _, path = range files {
-		// fmt.Printf("Loading: %s\n", path)
-		var b []byte
-		b, err = ioutil.ReadFile(path)
-		if err != nil {
-			return
-		}
-
-		// Convert "templates/layouts/base.html" to "layouts/base"
-		name := strings.TrimPrefix(filepath.Clean(path), filepath.Clean(dir)+"/")
-		name = strings.TrimSuffix(name, filepath.Ext(name))
-
-		// fmt.Printf("%q = %q\n", name, b)
-		templates[name] = b
-	}
-
-	return
+	return t
 }
 
-func (t *Templates) Load() (err error) {
+// Handles loading required templates
+func (t *Templates) load() (err error) {
 
 	// Child pages to render
 	var pages map[string][]byte
-	pages, err = LoadTemplateFiles(t.Dir, "pages/*"+t.Extension)
+	// pages, err = loadTemplateFiles(t.Dir, "pages/*"+t.Extension)
+	pages, err = loadTemplateFiles(t.Dir, "pages/", t.Extension)
 	if err != nil {
 		return
 	}
 
 	// Shared templates across multiple pages (sidebars, scripts, footers, etc...)
 	var includes map[string][]byte
-	includes, err = LoadTemplateFiles(t.Dir, "includes/*"+t.Extension)
+	// includes, err = loadTemplateFiles(t.Dir, "includes/*"+t.Extension)
+	includes, err = loadTemplateFiles(t.Dir, "includes", t.Extension)
 	if err != nil {
 		return
 	}
 
 	// Layouts used by pages
 	var layouts map[string][]byte
-	layouts, err = LoadTemplateFiles(t.Dir, "layouts/*"+t.Extension)
+	// layouts, err = loadTemplateFiles(t.Dir, "layouts/*"+t.Extension)
+	layouts, err = loadTemplateFiles(t.Dir, "layouts", t.Extension)
 	if err != nil {
 		return
 	}
@@ -149,7 +107,7 @@ func (t *Templates) Load() (err error) {
 		matches := parentRegex.FindSubmatch(b)
 		basename := filepath.Base(name)
 
-		tmpl, err = template.New(basename).Parse(string(b))
+		tmpl, err = template.New(basename).Funcs(t.Functions).Parse(string(b))
 
 		// Uses a layout
 		if len(matches) == 2 {
@@ -165,7 +123,6 @@ func (t *Templates) Load() (err error) {
 
 		if len(includes) > 0 {
 			for name, src := range includes {
-				// fmt.Printf("\tAdding:%s = %s\n", name, string(src))
 				_, err = tmpl.New(name).Parse(string(src))
 				if err != nil {
 					return
