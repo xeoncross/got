@@ -81,7 +81,7 @@ func TestTemplates(t *testing.T) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 
-	templates, err := New(dir, ".html")
+	templates, err := New(dir, ".html", nil)
 
 	if err != nil {
 		t.Error(err)
@@ -166,7 +166,7 @@ func BenchmarkCompile(b *testing.B) {
 	// Clean up after the test; another quirk of running as an example.
 	defer os.RemoveAll(dir)
 
-	templates, err := New(dir, ".html")
+	templates, err := New(dir, ".html", DefaultFunctions)
 
 	if err != nil {
 		b.Error(err)

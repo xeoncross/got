@@ -15,7 +15,7 @@ type Page struct {
 
 func main() {
 
-	templates, err := got.New("templates", ".html")
+	templates, err := got.New("templates", ".html", got.DefaultFunctions)
 	if err != nil {
 		log.Fatal(err)
 	}

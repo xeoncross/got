@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -19,10 +20,18 @@ import (
 
 // DefaultFunctions for templates
 var DefaultFunctions = template.FuncMap{
-	"title": strings.Title,
-	"upper": strings.ToUpper,
-	"lower": strings.ToLower,
-	"trim":  strings.TrimSpace,
+	"title":     strings.Title,
+	"upper":     strings.ToUpper,
+	"lower":     strings.ToLower,
+	"trim":      strings.TrimSpace,
+	"urlencode": url.QueryEscape,
+	// Often used for tables of rows
+	"yesno": func(yes string, no string, value bool) string {
+		if value {
+			return yes
+		}
+		return no
+	},
 	// Display singluar or plural based on count
 	"plural": func(one, many string, count int) string {
 		if count == 1 {

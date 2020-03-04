@@ -21,7 +21,7 @@ type NotFoundError struct {
 }
 
 func (t *NotFoundError) Error() string {
-	return fmt.Sprintf("Template %q not found", t.Name)
+	return fmt.Sprintf("template %q not found", t.Name)
 }
 
 // Might provide a default error template, probably not
@@ -50,19 +50,17 @@ type Templates struct {
 	Extension string
 	Dir       string
 	Templates map[string]*template.Template
-	Functions template.FuncMap
 }
 
-// New Templates collection
-func New(templatesDir, extension string) (*Templates, error) {
+// New templates collection
+func New(templatesDir, extension string, functions template.FuncMap) (*Templates, error) {
 	t := &Templates{
 		Extension: extension,
 		Dir:       templatesDir,
 		Templates: make(map[string]*template.Template),
-		Functions: DefaultFunctions,
 	}
 
-	return t, t.load()
+	return t, t.load(functions)
 }
 
 // Funcs function map for templates
@@ -75,11 +73,10 @@ func (t *Templates) Funcs(functions template.FuncMap) *Templates {
 }
 
 // Handles loading required templates
-func (t *Templates) load() (err error) {
+func (t *Templates) load(functions template.FuncMap) (err error) {
 
 	// Child pages to render
 	var pages map[string][]byte
-	// pages, err = loadTemplateFiles(t.Dir, "pages/*"+t.Extension)
 	pages, err = loadTemplateFiles(t.Dir, "pages/", t.Extension)
 	if err != nil {
 		return
@@ -87,7 +84,6 @@ func (t *Templates) load() (err error) {
 
 	// Shared templates across multiple pages (sidebars, scripts, footers, etc...)
 	var includes map[string][]byte
-	// includes, err = loadTemplateFiles(t.Dir, "includes/*"+t.Extension)
 	includes, err = loadTemplateFiles(t.Dir, "includes", t.Extension)
 	if err != nil {
 		return
@@ -95,7 +91,6 @@ func (t *Templates) load() (err error) {
 
 	// Layouts used by pages
 	var layouts map[string][]byte
-	// layouts, err = loadTemplateFiles(t.Dir, "layouts/*"+t.Extension)
 	layouts, err = loadTemplateFiles(t.Dir, "layouts", t.Extension)
 	if err != nil {
 		return
@@ -107,14 +102,14 @@ func (t *Templates) load() (err error) {
 		matches := parentRegex.FindSubmatch(b)
 		basename := filepath.Base(name)
 
-		tmpl, err = template.New(basename).Funcs(t.Functions).Parse(string(b))
+		tmpl, err = template.New(basename).Funcs(functions).Parse(string(b))
 
 		// Uses a layout
 		if len(matches) == 2 {
 
 			l, ok := layouts[filepath.Join("layouts", string(matches[1]))]
 			if !ok {
-				err = fmt.Errorf("Unknown layout %s%s\n", matches[1], t.Extension)
+				err = fmt.Errorf("unknown file: layouts/%s%s", matches[1], t.Extension)
 				return
 			}
 
