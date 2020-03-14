@@ -103,6 +103,9 @@ func (t *Templates) load(functions template.FuncMap) (err error) {
 		basename := filepath.Base(name)
 
 		tmpl, err = template.New(basename).Funcs(functions).Parse(string(b))
+		if err != nil {
+			return
+		}
 
 		// Uses a layout
 		if len(matches) == 2 {
